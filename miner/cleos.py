@@ -66,5 +66,5 @@ class Cleos_Handler:
 def send_mine_action(cleos_handler):
     account = cleos_handler.getAccount()
     data = '{"miner":"%s","symbol":"%d,%s"}' % (account, SYMBOL_PRECISION, SYMBOL_CODE)
-    args = [TOKEN_CONTRACT] + ["mine"] + [data]
+    args = ["-f"] + [TOKEN_CONTRACT] + ["mine"] + [data]
     return cleos_handler.sendAction(account, args)
