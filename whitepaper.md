@@ -20,7 +20,7 @@ This white paper outlines the critical problems with the prevailing EOS custom t
 <a name="background"></a>
 # Background
 
-With the release of the EOS.IO software there has been a flood of new tokens entering the market. Many dApps have their own centrally controlled, custom-tailored token. Moreover, it is common for dApps and users alike use the native EOS token as a currency. Although this is sometimes necessary for dAPP-specific behavior, in many cases it is not only unnecessary, but inconvenient, redundant, and dangerous.
+With the release of the EOS.IO software there has been a flood of new tokens entering the market. Many dApps have their own centrally controlled, custom-tailored token. Moreover, it is common for dApps and users alike to use the native EOS token as a currency. Although this is sometimes necessary for dAPP-specific behavior, in many cases it is not only unnecessary, but inconvenient, redundant, and dangerous.
 
 <a name="problemcustom"></a>
 ## The Problem With Custom Tokens
@@ -37,7 +37,7 @@ The native EOS token is a utility token and a resource. Although it does not suf
 <a name="digtoken"></a>
 # The DIG Token
 
-The DIG token is an eco-friendly mineable token with a fixed maximum rate of inflation, which inherits all of the underlying security properties of the network on which it is built. The purpose of the DIG token is to provide the EOS ecosystem with a single-purpose currency token with which users and dApp developers alike can leverage whenever applicable, rather than having to deal with the complications, security risks, and pitfalls of the prevailing custom token model.
+The DIG token is an eco-friendly mineable token with a fixed maximum rate of inflation, which inherits all of the underlying security properties of the network on which it is built. The purpose of the DIG token is to provide the EOS ecosystem with a single-purpose currency token which users and dApp developers alike can leverage whenever applicable, rather than having to deal with the complications, security risks, and pitfalls of the prevailing custom token model.
 
 <a name="deploy"></a>
 ## Secure Deployment

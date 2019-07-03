@@ -46,7 +46,7 @@ def main(config_path):
 
 if __name__ == '__main__':
     if len(argv) != 2:
-        print("Usage: ./mine.py [config_path]")
+        print("Usage: ./minedig.py [config_path]")
         exit(1)
 
     main(argv[1])
