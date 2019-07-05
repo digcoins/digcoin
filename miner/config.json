@@ -4,7 +4,11 @@
         "wallet_name": "your_cleos_wallet_name",
         "wallet_password": "your_cleos_wallet_password",
         "cleos_path": "path_to_cleos",
-        "api_url": "EOS_api_URL",
-        "verbose_errors": true
+        "num_threads": 1,
+        "verbose_errors": true,
+        "api_urls": [
+            "url_1",
+            "url_2"
+        ]
     }
 }}

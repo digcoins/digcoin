@@ -17,12 +17,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from sys import exit, argv
 import json
+import threading
+from sys import exit, argv
 from time import sleep
 
 from cleos import Cleos_Handler
 import cleos as cl
+
+
+
+# ***WARNING***
+# Increasing this limit too much has the potential to use up all your
+# resources in an instant. Modify at your own discretion.
+MAX_NUM_THREADS = 4
+
 
 def load_config(path):
     fp = open(path, 'r')
@@ -34,15 +43,31 @@ def load_config(path):
     finally:
         fp.close()
 
-def mine(cleos_handler):
+"""
+Each thread will attempt approx. one mine operation per block.
+
+Note: This is a naive implementation that does not attempt to syncronize
+threads/mine attempts.
+"""
+def miner_thread(cleos_handler):
     while True:
         cl.send_mine_action(cleos_handler)
-        sleep(0.01)
+        sleep(0.5)
 
 def main(config_path):
-    config = load_config(config_path)
-    C = Cleos_Handler(config['cleos'])
-    mine(C)
+    config = load_config(config_path)['cleos']
+    C = Cleos_Handler(config)
+
+    num_threads = config['num_threads']
+
+    if num_threads > MAX_NUM_THREADS or num_threads <= 0:
+        print("num_threads must be a positive integer no greater than %d" % MAX_NUM_THREADS)
+        exit(2)
+
+    for _ in range(num_threads):
+        thread = threading.Thread(target=miner_thread, args=(C,))
+        thread.start()
+        sleep(0.5)
 
 if __name__ == '__main__':
     if len(argv) != 2:

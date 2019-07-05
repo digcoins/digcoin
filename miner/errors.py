@@ -17,6 +17,3 @@ along
 
 class ClassInitError(Exception):
     pass
-
-class ConversionError(Exception):
-    pass
