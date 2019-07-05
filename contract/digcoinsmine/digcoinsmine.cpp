@@ -43,20 +43,26 @@ public:
     using contract::contract;
 
     [[eosio::action]]
-    void create(name issuer, asset maximum_supply)
+    void create(const name &issuer, const asset &maximum_supply)
     {
-        require_auth(_self);
+        require_auth(get_self());
 
         auto sym = maximum_supply.symbol;
         check(sym.is_valid(), "invalid symbol name");
         check(maximum_supply.is_valid(), "invalid supply");
         check(maximum_supply.amount > 0, "max-supply must be positive");
 
-        stats statstable(_self, sym.code().raw());
+        stats statstable(get_self(), sym.code().raw());
         auto existing = statstable.find(sym.code().raw());
         check(existing == statstable.end(), "token with symbol already exists");
+        check(issuer == get_self(), "issuer must be contract account");
 
-        statstable.emplace(_self, [&](auto& s) {
+        // make sure a positive quantity reward is possible given the max supply
+        double reward_amount = calculate_reward(maximum_supply);
+        asset reward = {static_cast<int64_t>(reward_amount), sym};
+        check(reward.amount > 0, "Positive rewards are impossible. Increase the max supply or symbol precision.");
+
+        statstable.emplace(get_self(), [&](auto& s) {
             s.supply.symbol = maximum_supply.symbol;
             s.max_supply    = maximum_supply;
             s.issuer        = issuer;
@@ -64,27 +70,31 @@ public:
     }
 
     [[eosio::action]]
-    void issue(name to, asset quantity, std::string memo)
+    void issue(const name &to, const asset &quantity, const std::string &memo)
     {
         auto sym = quantity.symbol;
         check(sym.is_valid(), "invalid symbol name");
         check(memo.size() <= 256, "memo has more than 256 bytes");
 
-        stats statstable(_self, sym.code().raw());
+        stats statstable(get_self(), sym.code().raw());
         auto existing = statstable.find(sym.code().raw());
         check(existing != statstable.end(), "token with symbol does not exist, create token before issue");
         const auto& st = *existing;
 
         require_auth(st.issuer);
 
-        check(to == st.issuer, "Cannot issue tokens outside of this contract.");
-        check(st.supply.amount == 0, "This action can only be executed once for a given symbol.");
+        check(to == st.issuer, "tokens can only be issued to issuer account");
+        check(st.supply.amount == 0, "this action can only be executed once for a given symbol");
 
         check(quantity.is_valid(), "invalid quantity");
         check(quantity.amount > 0, "must issue positive quantity");
-
+        check(quantity.amount < st.max_supply.amount, "quantity must be less than maximum supply");
         check(quantity.symbol == st.supply.symbol, "symbol precision mismatch");
-        check(quantity.amount <= st.max_supply.amount - st.supply.amount, "quantity exceeds available supply");
+
+        // make sure the initial reward will be >= the smallest possible quantity of an asset
+        double reward_amount = calculate_reward(quantity);
+        asset reward = {static_cast<int64_t>(reward_amount), sym};
+        check(reward.amount > 0, "issue quantity is too small");
 
         statstable.modify(st, same_payer, [&](auto& s) {
             s.supply += quantity;
@@ -94,14 +104,14 @@ public:
     }
 
     [[eosio::action]]
-    void transfer(name from, name to, asset quantity, std::string memo)
+    void transfer(const name &from, const name &to, const asset &quantity, const std::string &memo)
     {
         check(from != to, "cannot transfer to self");
         require_auth(from);
         check(is_account(to), "to account does not exist");
 
         auto sym = quantity.symbol.code();
-        stats statstable(_self, sym.raw());
+        stats statstable(get_self(), sym.raw());
         const auto& st = statstable.get(sym.raw());
 
         check(from != st.issuer, "Issuer may not transfer tokens.");
@@ -120,9 +130,9 @@ public:
         addbalance(to, quantity, payer);
     }
 
-    void subbalance(name owner, asset value)
+    void subbalance(const name &owner, const asset &value)
     {
-        accounts from_acnts(_self, owner.value);
+        accounts from_acnts(get_self(), owner.value);
 
         const auto& from = from_acnts.get(value.symbol.code().raw(), "no balance object found");
         check(from.balance.amount >= value.amount, "overdrawn balance");
@@ -132,9 +142,9 @@ public:
         });
     }
 
-    void addbalance(name owner, asset value, name ram_payer)
+    void addbalance(const name &owner, const asset &value, const name &ram_payer)
     {
-        accounts to_acnts(_self, owner.value);
+        accounts to_acnts(get_self(), owner.value);
         auto to = to_acnts.find(value.symbol.code().raw());
 
         if (to == to_acnts.end()) {
@@ -149,17 +159,18 @@ public:
     }
 
     [[eosio::action]]
-    void open(name owner, const symbol& symbol, name ram_payer)
+    void open(const name &owner, const symbol &symbol, const name &ram_payer)
     {
         require_auth(ram_payer);
 
-        auto sym_code_raw = symbol.code().raw();
+        check(is_account(owner), "owner account does not exist");
 
-        stats statstable(_self, sym_code_raw);
+        auto sym_code_raw = symbol.code().raw();
+        stats statstable(get_self(), sym_code_raw);
         const auto& st = statstable.get(sym_code_raw, "symbol does not exist");
         check(st.supply.symbol == symbol, "symbol precision mismatch");
 
-        accounts acnts(_self, owner.value);
+        accounts acnts(get_self(), owner.value);
         auto it = acnts.find(sym_code_raw);
 
         if (it == acnts.end()) {
@@ -170,10 +181,10 @@ public:
     }
 
     [[eosio::action]]
-    void close(name owner, const symbol& symbol)
+    void close(const name &owner, const symbol &symbol)
     {
         require_auth(owner);
-        accounts acnts(_self, owner.value);
+        accounts acnts(get_self(), owner.value);
         auto it = acnts.find(symbol.code().raw());
         check(it != acnts.end(), "Balance row already deleted or never existed. Action won't have any effect.");
         check(it->balance.amount == 0, "Cannot close because the balance is not zero.");
@@ -181,12 +192,12 @@ public:
     }
 
     [[eosio::action]]
-    void mine(name miner, const symbol& symbol)
+    void mine(const name &miner, const symbol &symbol)
     {
         require_auth(miner);
         check(symbol.is_valid(), "invalid symbol name");
 
-        stats statstable(_self, symbol.code().raw());
+        stats statstable(get_self(), symbol.code().raw());
         auto existing = statstable.find(symbol.code().raw());
         check(existing != statstable.end(), "token with symbol does not exist.");
         const auto& st = *existing;
@@ -202,7 +213,7 @@ public:
             return;
         }
 
-        asset supply = get_supply(_self, symbol.code());
+        asset supply = get_supply(get_self(), symbol.code());
         double reward_amount = calculate_reward(supply);
 
         asset reward = {static_cast<int64_t>(reward_amount), symbol};
@@ -212,12 +223,12 @@ public:
         check(reward.amount > 0, "must reward positive quantity");
         check(reward.amount <= st.max_supply.amount - st.supply.amount, "This mine is empty. Time to move on.");
 
-        statstable.modify(st, _self, [&](auto &s) {
+        statstable.modify(st, get_self(), [&](auto &s) {
             s.last_reward_time = current_time;
             s.supply += reward;
         });
 
-        require_recipient(_self);
+        require_recipient(get_self());
         require_recipient(miner);
 
         addbalance(miner, reward, miner);
@@ -227,10 +238,10 @@ public:
     }
 
     [[eosio::action]]
-    void miningreward(name from, name to, asset reward, std::string memo)
+    void miningreward(const name &from, const name &to, const asset &reward, const std::string &memo)
     {
         auto sym_code_raw = reward.symbol.code().raw();
-        stats statstable(_self, sym_code_raw);
+        stats statstable(get_self(), sym_code_raw);
         auto existing = statstable.find(sym_code_raw);
         check(existing != statstable.end(), "token with symbol does not exist.");
         const auto& st = *existing;
@@ -241,10 +252,10 @@ public:
     }
 
     [[eosio::action]]
-    void miningfail(name from, name to, const symbol& symbol, std::string memo)
+    void miningfail(const name &from, const name &to, const symbol &symbol, const std::string &memo)
     {
         auto sym_code_raw = symbol.code().raw();
-        stats statstable(_self, sym_code_raw);
+        stats statstable(get_self(), sym_code_raw);
         auto existing = statstable.find(sym_code_raw);
         check(existing != statstable.end(), "token with symbol does not exist.");
         const auto& st = *existing;
@@ -254,7 +265,7 @@ public:
         require_recipient(to);
     }
 
-    static asset get_supply(name token_contract_account, symbol_code sym_code)
+    static asset get_supply(const name &token_contract_account, const symbol_code &sym_code)
     {
         stats statstable(token_contract_account, sym_code.raw());
         const auto& st = statstable.get(sym_code.raw());
