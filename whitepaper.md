@@ -20,7 +20,7 @@ This white paper outlines the critical problems with the prevailing EOS custom t
 <a name="background"></a>
 # Background
 
-With the release of the EOS.IO software there has been a flood of new tokens entering the market. Many dApps have their own centrally controlled, custom-tailored token. Moreover, it is common for dApps and users alike to use the native EOS token as a currency. Although this is sometimes necessary for dAPP-specific behavior, in many cases it is not only unnecessary, but inconvenient, redundant, and dangerous.
+With the release of the EOS.IO software there has been a flood of new tokens entering the market. Many dApps have their own centrally controlled, custom-tailored token. Moreover, it is common for dApps and users alike to use the native EOS token as a currency. Although this is sometimes necessary for dApp-specific behavior, in many cases it is not only unnecessary, but inconvenient, redundant, and dangerous.
 
 <a name="problemcustom"></a>
 ## The Problem With Custom Tokens
@@ -79,4 +79,4 @@ In light of the lack of a secure and reliable single-purpose currency token with
 
 <a id="note2" href="#note2ref"><sup>2</sup></a> Once the token supply is greater than zero, the contract's `issue` action is disabled.
 
-<a id="note3" href="#note3ref"><sup>3</sup></a> The `transaction` action is explicitly disabled for outbound token transactions originating from the contract account.
+<a id="note3" href="#note3ref"><sup>3</sup></a> The `transfer` action is explicitly disabled for outbound token transactions originating from the contract account.
